@@ -93,36 +93,44 @@ before the start is used and marked `last_quote`.
 
 ## Running on GitHub Actions (stopgap until the Pi)
 
-`.github/workflows/scan.yml` runs `python -m scanner auto` every 10 minutes in the pregame
-windows. `auto` checks the US-Eastern clock and scans NBA 4pm–midnight, NFL Sunday 10am–9pm and
-Monday/Thursday 6–9pm. It also snapshots closes and reads your Telegram commands. The database
-is saved to the `scanner-data` branch after every run (a single force-pushed commit, so history
-doesn't pile up). Old, unflagged data is pruned after 3 days.
+The repo is **public** so Actions minutes are free and unlimited. `.github/workflows/scan.yml`
+runs `python -m scanner auto` every 5 minutes (GitHub's minimum) in the pregame windows. `auto`
+checks the US-Eastern clock and scans NBA 4pm–midnight, NFL Sunday 10am–9pm and Monday/Thursday
+6–9pm, so daylight saving is handled. It also snapshots closes and reads your Telegram commands.
 
-One-time setup:
+**Your data stays private.** After every run the database is encrypted (AES-256, key in the
+`DB_KEY` secret) and saved to the `scanner-data` branch as `props.db.enc`, as a single
+force-pushed commit. If `DB_KEY` is missing, the run stops before scanning, so a readable
+database is never published. Telegram secrets are hidden by GitHub and masked in logs. Old,
+unflagged data is pruned after 3 days.
+
+One-time setup (the repo name is explicit, so these work from any folder):
 
 ```bash
-.venv/bin/python -m scanner setup-telegram          # writes .env
-gh secret set TELEGRAM_BOT_TOKEN --body "$(grep ^TELEGRAM_BOT_TOKEN= .env | cut -d= -f2-)"
-gh secret set TELEGRAM_CHAT_ID   --body "$(grep ^TELEGRAM_CHAT_ID= .env | cut -d= -f2-)"
-gh workflow run scan -f force=nba                    # first run now, outside the window
+.venv/bin/python -m scanner setup-telegram                      # writes .env
+gh secret set TELEGRAM_BOT_TOKEN --repo blanquecheck/props-scanner   # paste the token
+gh secret set TELEGRAM_CHAT_ID   --repo blanquecheck/props-scanner   # paste the chat id
+gh secret set DB_KEY --repo blanquecheck/props-scanner < .db_key     # encryption key
+gh workflow run scan -f force=nba                                # first run now, outside the window
 ```
+
+`.db_key` is a random key in this folder (gitignored). Keep it: `pull_db.sh` needs it to decrypt.
 
 **Logging trades:** each alert ends with its flag number. When you place the trade, reply to
 the bot with `/took <id> <price> <qty>`, for example `/took 42 45 10` for 10 contracts at 45¢.
-The next run (within about 10 minutes) logs it and confirms. Only messages from your
+The next run (within about 5 minutes) logs it and confirms. Only messages from your
 `TELEGRAM_CHAT_ID` count.
 
 **Viewing the UI:** `scripts/pull_db.sh && .venv/bin/python -m scanner ui`. That's a read-only
 copy; anything you change in the local UI isn't sent back.
 
 Limits of the stopgap:
-- **Timing:** GitHub starts scheduled runs late or skips them when busy, and runs are 10 minutes
-  apart, not 3. The close window opens 12 minutes before the start (`CLOSE_LEAD_MIN=12`), so
-  closes are a bit earlier than on the Pi.
-- **UTC schedule:** the cron lines are set for EST. After the March clock change, the 4pm ET
-  hour isn't covered. Add `"*/10 20 * * *"` then, or move to the Pi.
-- **Free minutes:** about 1,600 of the 2,000 a month on a private repo (each run bills ~1 minute).
+- **Timing:** GitHub starts scheduled runs late or skips them when busy. The close window opens
+  7 minutes before the start (`CLOSE_LEAD_MIN=7`), so closes are a bit earlier than on the Pi.
+- **Public code:** anyone can read the code and the run logs (scan counts only, no prices you
+  traded). Nobody else can trigger runs or read the secrets.
+- **60-day rule:** GitHub pauses scheduled workflows in public repos after 60 days without
+  repository activity. Re-enable it on the Actions tab if that happens.
 
 ## Cron windows
 

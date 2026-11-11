@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS kv (
     value         TEXT NOT NULL
 );
 
--- player-name aliases approved by Jaraad (in addition to data/player_aliases.csv)
+-- player-name aliases approved in the UI (in addition to data/player_aliases.csv)
 CREATE TABLE IF NOT EXISTS aliases (
     sport         TEXT NOT NULL,
     kalshi_norm   TEXT NOT NULL,

@@ -2,7 +2,7 @@
 
 Rules (a wrong match is worse than a missed alert):
   * game_key, stat and line must be identical. These never fuzzy-match.
-  * Player name must be an exact normalized match, a seeded alias, or a pair Jaraad
+  * Player name must be an exact normalized match, a seeded alias, or a pair you
     approved in the UI. Those get confidence 1.0 and can alert.
   * Anything else that looks similar becomes a 'review' match with confidence < 1.
     Review matches never alert until approved.

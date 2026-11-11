@@ -114,7 +114,7 @@ def opportunities(hours: int = 24):
 @app.post("/mark-taken")
 def mark_taken(opportunity_id: int = Form(...), price: float = Form(...), contracts: float = Form(...),
                note: str = Form("")):
-    """Log a trade Jaraad placed by hand. Local bookkeeping only."""
+    """Log a trade you placed by hand. Local bookkeeping only."""
     if not log_trade(db(), opportunity_id, price, contracts, note):
         return PlainTextResponse("bad input", status_code=400)
     return RedirectResponse("/clv", status_code=303)

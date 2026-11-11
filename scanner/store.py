@@ -60,7 +60,7 @@ def prune(conn: sqlite3.Connection, keep_days: float = 3) -> dict:
 
 def log_trade(conn: sqlite3.Connection, opportunity_id: int, price: float, contracts: float,
               note: str = "") -> sqlite3.Row | None:
-    """Record a trade Jaraad placed by hand against a flagged opportunity. Returns the opportunity row."""
+    """Record a trade you placed by hand against a flagged opportunity. Returns the opportunity row."""
     from .fees import kalshi_taker_fee, polymarket_taker_fee
     o = conn.execute("""SELECT o.*, k.fee_mult, p.fee_rate, p.fee_exponent, k.player_raw, k.stat, k.line
                         FROM opportunities o JOIN matches m ON m.id=o.match_id
@@ -79,7 +79,7 @@ def log_trade(conn: sqlite3.Connection, opportunity_id: int, price: float, contr
 
 def upsert_match(conn: sqlite3.Connection, kalshi_id: int, poly_id: int, confidence: float,
                  method: str, status: str) -> sqlite3.Row:
-    """Insert or refresh a match. Jaraad's decisions (approved / rejected) are never overwritten."""
+    """Insert or refresh a match. Your decisions (approved / rejected) are never overwritten."""
     ts = now_iso()
     row = conn.execute("SELECT * FROM matches WHERE kalshi_id=? AND poly_id=?", (kalshi_id, poly_id)).fetchone()
     if row is None:
