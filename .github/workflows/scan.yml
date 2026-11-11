@@ -36,6 +36,7 @@ jobs:
     env:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}   # optional members channel
       DB_KEY: ${{ secrets.DB_KEY }}
       DB_PATH: props.db
       CLOSE_LEAD_MIN: "7"    # runs are ~5 min apart and can start late, so open the close window a bit early

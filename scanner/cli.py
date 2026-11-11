@@ -45,12 +45,44 @@ def main(argv: list[str] | None = None) -> int:
     au.add_argument("--force", default="", help="comma list of sports to scan regardless of the time window")
     sub.add_parser("test-alert")
     sub.add_parser("setup-telegram")
+    sub.add_parser("setup-channel")
+    sub.add_parser("channel-intro")
+    sub.add_parser("preview-alert")
     sub.add_parser("ui")
     args = ap.parse_args(argv)
 
     if args.cmd == "setup-telegram":
         from .telegram_setup import run
         return run()
+    if args.cmd == "setup-channel":
+        from .telegram_setup import run_channel
+        return run_channel()
+    if args.cmd in ("channel-intro", "preview-alert"):
+        import httpx
+        from .alerts import alert_buttons, format_alert
+        from .telegram_setup import post_intro
+        s = Settings()
+        if args.cmd == "channel-intro":
+            if not s.telegram_channel_id:
+                print("No TELEGRAM_CHANNEL_ID in .env; run setup-channel first.")
+                return 1
+            return 0 if post_intro(httpx.Client(timeout=15), s.telegram_token, s.telegram_channel_id) else 1
+        # preview-alert: send a sample of both versions to YOUR chat only
+        sample = {"player": "AJ Dybantsa", "sport": "nba", "stat": "points", "line": 19.5, "side": "yes",
+                  "buy_venue": "kalshi", "ask": 0.45, "ask_size": 400, "fee_per": 0.0174, "ref_price": 0.52,
+                  "net_edge": 0.0526, "arb_net": 0.021, "warnings": [], "game": "Wizards vs. Pacers",
+                  "start_time": "2026-11-12T00:00:00+00:00", "opp_id": 42,
+                  "kalshi_url": "https://kalshi.com/markets/kxnbapts/nba-player-points/kxnbapts-26nov11wasind",
+                  "poly_url": "https://polymarket.com/event/nba-was-ind-2026-11-11"}
+        tg = Telegram(s)
+        ok = tg.send("👀 <b>SAMPLE: what you get (DM)</b>\n\n" + format_alert(sample, "owner"), alert_buttons(sample))
+        thin = dict(sample, side="no", ask=0.55, ask_size=12, warnings=["THIN BOOK: only 12 at ask"])
+        ok &= tg.send("👀 <b>SAMPLE: what members get (channel)</b>\n\n" + format_alert(sample, "channel"),
+                      alert_buttons(sample))
+        ok &= tg.send("👀 <b>SAMPLE: thin-market UNDER (DM only; members skip thin markets)</b>\n\n"
+                      + format_alert(thin, "owner"), alert_buttons(thin))
+        print("sent 3 samples to your chat" if ok else "not sent (check .env)")
+        return 0 if ok else 1
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     logging.getLogger("httpx").setLevel(logging.WARNING)

@@ -36,8 +36,16 @@ class FakeTG:
         self.sent = []
         self.configured = True
 
-    def send(self, text):
+        self.channel = []
+        self.channel_configured = True
+
+    def send(self, text, buttons=None, chat_id=None):
         self.sent.append(text)
+        self.buttons = buttons
+        return True
+
+    def send_channel(self, text, buttons=None):
+        self.channel.append(text)
         return True
 
 
@@ -79,9 +87,11 @@ def test_scan_alerts_once_across_repeat_polls(conn):
     for _ in range(2):
         run_scan(s, conn, FakeKalshi([k]), FakePoly([p], book), tg, ["nba"])
     assert len(tg.sent) == first                       # no duplicate spam on repeat polls
-    msg = next(m for m in tg.sent if "on <b>Kalshi</b>" in m)
-    for needle in ("AJ Dybantsa", "20+ points", "OVER", "Kalshi", "Net edge", "Kalshi market", "DNP rules differ"):
+    msg = next(m for m in tg.sent if "👉 Kalshi:" in m)
+    for needle in ("AJ Dybantsa", "OVER 19.5 points", "“20+ points”", "Edge:", "after fees", "/took", "If he sits"):
         assert needle in msg
+    urls = [b["url"] for b in tg.buttons[0]]
+    assert any(u.startswith("https://kalshi.com/markets/") for u in urls) and any("polymarket.com/event/" in u for u in urls)
     assert conn.execute("SELECT COUNT(*) FROM opportunities").fetchone()[0] == 3 * first   # logged every poll
 
 
@@ -89,8 +99,9 @@ def test_thin_book_shows_in_alert(conn):
     k, p, book = _mispriced_pair(ask_size=6)
     tg = FakeTG()
     run_scan(Settings(), conn, FakeKalshi([k]), FakePoly([p], book), tg, ["nba"])
-    kalshi_msgs = [m for m in tg.sent if "on <b>Kalshi</b>" in m]
-    assert kalshi_msgs and all("THIN BOOK" in m for m in kalshi_msgs)
+    kalshi_msgs = [m for m in tg.sent if "👉 Kalshi:" in m]
+    assert kalshi_msgs and all("Thin market: only 6 contracts" in m for m in kalshi_msgs)
+    assert not any("👉 Kalshi:" in m for m in tg.channel)   # members never get thin markets
 
 
 def test_dnp_gap_suppresses_alert(conn):
@@ -126,8 +137,9 @@ def test_alert_format_fields():
                         "net_edge": 0.0526, "arb_net": None, "kalshi_yes_bid": 0.44, "kalshi_yes_ask": 0.45,
                         "poly_yes_bid": 0.51, "poly_yes_ask": 0.53, "warnings": ["THIN BOOK: only 12 at ask"],
                         "kalshi_url": "https://kalshi.com/markets/x", "poly_url": "https://polymarket.com/event/y",
-                        "start_time": None})
-    for needle in ("LeBron James 25+ points", "45.0¢", "52.0¢", "5.3¢", "THIN BOOK", "https://kalshi.com/markets/x"):
+                        "start_time": None, "opp_id": 7})
+    for needle in ("LeBron James · OVER 24.5 points", "“25+ points” at <b>45¢</b>", "52¢", "+5.3¢",
+                   "Thin market: only 12 contracts", "/took"):
         assert needle in msg
 
 
@@ -186,3 +198,26 @@ def test_cli_refuses_public_bind(monkeypatch):
     from scanner import cli
     monkeypatch.setenv("UI_HOST", "0.0.0.0")
     assert cli.main(["ui"]) == 2
+
+
+# ------------------------------------------------------------------ members channel
+
+def test_channel_gets_member_version_without_commands(conn):
+    k, p, book = _mispriced_pair(ask_size=400)
+    tg = FakeTG()
+    summary = run_scan(Settings(), conn, FakeKalshi([k]), FakePoly([p], book), tg, ["nba"])
+    kal = [m for m in tg.channel if "👉 Kalshi:" in m]
+    assert kal and summary.get("channel_posts", 0) >= 1
+    assert all("/took" not in m and "not betting advice" in m for m in tg.channel)
+    assert all("🔁" not in m for m in tg.channel)                 # no both-sides talk for members
+    assert any("/took" in m for m in tg.sent)                       # owner still gets it
+
+
+def test_under_wording_matches_each_venue():
+    base = {"player": "X Y", "sport": "nba", "stat": "threes", "line": 2.5, "side": "no", "ask": 0.6,
+            "ask_size": 100, "fee_per": 0.01, "ref_price": 0.66, "net_edge": 0.05, "arb_net": None,
+            "warnings": [], "kalshi_url": "https://kalshi.com/a", "poly_url": "https://polymarket.com/b"}
+    k = format_alert(dict(base, buy_venue="kalshi"), "channel")
+    p = format_alert(dict(base, buy_venue="polymarket"), "channel")
+    assert "UNDER 2.5 threes" in k and "buy <b>NO</b> on “3+ threes”" in k
+    assert "buy <b>No</b> on “3-pointers made O/U 2.5”" in p

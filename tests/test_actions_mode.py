@@ -46,9 +46,14 @@ class TG:
         out = [u for u in self.updates if offset is None or u["update_id"] >= offset]
         return out
 
-    def send(self, text):
+    channel_configured = False
+
+    def send(self, text, buttons=None, chat_id=None):
         self.sent.append(text)
         return True
+
+    def send_channel(self, text, buttons=None):
+        return False
 
 
 def test_took_logs_trade_only_from_my_chat(tmp_path, monkeypatch):

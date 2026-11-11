@@ -38,3 +38,24 @@ def test_bad_token_saves_nothing(tmp_path):
     env = tmp_path / ".env"
     assert ts.run(fake_client([]), env, input_fn=lambda _: "not-a-token") == 1
     assert not env.exists()
+
+
+def test_find_channel_id_from_admin_promotion():
+    def handler(req):
+        return httpx.Response(200, json={"ok": True, "result": [
+            {"update_id": 9, "my_chat_member": {"chat": {"id": 555, "type": "private"},
+                                                "new_chat_member": {"status": "member"}}},
+            {"update_id": 10, "my_chat_member": {"chat": {"id": -1001234, "type": "channel", "title": "Prop Edges"},
+                                                 "new_chat_member": {"status": "administrator"}}}]})
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    assert ts.find_channel_id(client, TOKEN, timeout_s=5) == ("-1001234", "Prop Edges")
+
+
+def test_intro_is_valid_telegram_html():
+    import re
+    # only tags Telegram HTML supports, and they balance
+    tags = re.findall(r"</?(\w+)", ts.CHANNEL_INTRO)
+    assert set(tags) <= {"b", "i"}
+    for t in ("b", "i"):
+        assert ts.CHANNEL_INTRO.count(f"<{t}>") == ts.CHANNEL_INTRO.count(f"</{t}>")
+    assert len(ts.CHANNEL_INTRO) < 4096   # Telegram message limit

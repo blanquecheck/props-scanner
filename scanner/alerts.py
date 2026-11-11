@@ -24,35 +24,94 @@ STAT_LABEL = {
 }
 
 
+SPORT_ICON = {"nba": "🏀", "nfl": "🏈"}
+STAT_TITLE = {"threes": "3-pointers made"}  # how Polymarket words it; Kalshi says "threes"
+
+
 def c(x: float | None) -> str:
     return "—" if x is None else f"{x * 100:.1f}¢"
 
 
-def format_alert(a: dict) -> str:
-    """a: dict with player, stat, line, side, buy_venue, ask, ask_size, fee_per, ref_price,
-    net_edge, arb_net, kalshi_yes_bid/ask, poly_yes_bid/ask, warnings, kalshi_url, poly_url, start_time."""
-    threshold = int(a["line"] + 0.5)
-    side = f"OVER ({threshold}+)" if a["side"] == "yes" else f"UNDER ({threshold}+ = NO)"
+def cents(x: float) -> str:
+    """45¢, or 45.5¢ when it isn't a whole cent."""
+    v = round(x * 100, 1)
+    return f"{v:g}¢"
+
+
+def et_time(iso: str | None) -> str:
+    if not iso:
+        return ""
+    from zoneinfo import ZoneInfo
+    t = datetime.fromisoformat(iso).astimezone(ZoneInfo("America/New_York"))
+    return t.strftime("%-I:%M %p ET")
+
+
+def _friendly_warning(w: str) -> str | None:
+    m = re.match(r"THIN BOOK: only ([\d.]+) at ask", w)
+    if m:
+        return f"Thin market: only {float(m.group(1)):g} contracts at this price"
+    m = re.match(r"wide (ref )?spread (\d+)c on (\w+)", w)
+    if m:
+        return f"{m.group(3).title()} prices are {m.group(2)}¢ apart (bid to ask), so fills may be worse"
+    if w == "depth unknown":
+        return "Size at this price is unknown"
+    return w
+
+
+def what_to_buy(a: dict) -> str:
+    """Exact instruction in each venue's own wording, e.g. Kalshi YES on '20+ points'."""
+    n = int(a["line"] + 0.5)
+    stat = STAT_LABEL.get(a["stat"], a["stat"])
+    if a["buy_venue"] == "kalshi":
+        return f"Kalshi: buy <b>{'YES' if a['side'] == 'yes' else 'NO'}</b> on “{n}+ {stat}” at <b>{cents(a['ask'])}</b>"
+    poly_stat = STAT_TITLE.get(a["stat"], stat).capitalize()
+    return (f"Polymarket: buy <b>{'Yes' if a['side'] == 'yes' else 'No'}</b> on “{poly_stat} O/U {a['line']:g}” "
+            f"at <b>{cents(a['ask'])}</b>")
+
+
+def format_alert(a: dict, audience: str = "owner") -> str:
+    """Readable alert card. audience='owner' adds the /took line; 'channel' adds a short disclaimer.
+
+    a: player, sport, stat, line, side, buy_venue, ask, ask_size, fee_per, ref_price, net_edge,
+       arb_net, warnings, kalshi_url, poly_url, start_time, game (e.g. 'Wizards vs. Pacers'), opp_id.
+    """
+    stat = STAT_LABEL.get(a["stat"], a["stat"])
+    direction = "OVER" if a["side"] == "yes" else "UNDER"
+    ref_venue = "Polymarket" if a["buy_venue"] == "kalshi" else "Kalshi"
+    pct = a["net_edge"] / (a["ask"] + a["fee_per"]) if a["ask"] else 0
+    header = " · ".join(x for x in (f"{SPORT_ICON.get(a['sport'], '')} <b>{a['sport'].upper()}</b>",
+                                    html.escape(a.get("game") or ""), et_time(a.get("start_time"))) if x.strip())
     lines = [
-        f"<b>{html.escape(a['player'])} {threshold}+ {STAT_LABEL.get(a['stat'], a['stat'])}</b> [{a['sport'].upper()}]",
-        f"Buy <b>{side}</b> on <b>{a['buy_venue'].title()}</b> @ {c(a['ask'])} (size {a['ask_size'] if a['ask_size'] is not None else '?'})",
-        f"Net edge <b>{c(a['net_edge'])}</b> after {c(a['fee_per'])} fee vs ref {c(a['ref_price'])}",
-        f"Kalshi YES {c(a['kalshi_yes_bid'])} / {c(a['kalshi_yes_ask'])}  ·  Poly YES {c(a['poly_yes_bid'])} / {c(a['poly_yes_ask'])}",
+        header,
+        "",
+        f"<b>{html.escape(a['player'])} · {direction} {a['line']:g} {stat}</b>",
+        f"👉 {what_to_buy(a)}",
+        "",
+        f"✅ Edge: <b>+{c(a['net_edge'])}</b> per contract after fees (≈{pct * 100:.0f}% on cost)",
+        f"📊 {ref_venue} prices this side at {cents(a['ref_price'])}",
     ]
-    if a.get("arb_net") is not None and a["arb_net"] > 0:
-        lines.append(f"Both sides (only locked if he plays): {c(a['arb_net'])}/contract after both fees")
-    for w in a.get("warnings") or []:
-        lines.append(f"⚠️ {html.escape(w)}")
-    lines.append("⚠️ DNP rules differ: Polymarket settles NO if he sits; Kalshi settles at a fair price. Check status.")
-    if a.get("start_time"):
-        lines.append(f"Start: {a['start_time']}")
-    lines.append(f"<a href=\"{html.escape(a['kalshi_url'])}\">Kalshi market</a> · "
-                 f"<a href=\"{html.escape(a['poly_url'])}\">Polymarket</a>")
-    lines.append("Read-only scanner. Place any trade yourself.")
-    if a.get("opp_id"):
-        lines.append(f"Took it? Reply <code>/took {a['opp_id']} &lt;price&gt; &lt;qty&gt;</code>, "
-                     f"e.g. /took {a['opp_id']} {round(a['ask'] * 100)} 10")
+    if a.get("ask_size") is not None:
+        lines.append(f"💧 {a['ask_size']:g} contracts available at {cents(a['ask'])}")
+    warns = [fw for w in (a.get("warnings") or []) if (fw := _friendly_warning(w))]
+    if warns:
+        lines.append("")
+        lines += [f"⚠️ {html.escape(w)}" for w in warns]
+    lines.append("")
+    lines.append("ℹ️ Check he's playing. If he sits, Polymarket pays No but Kalshi settles at a fair price.")
+    if audience == "owner":
+        if a.get("arb_net") is not None and a["arb_net"] > 0:
+            lines.append(f"🔁 Buying the other side on {ref_venue} too locks {c(a['arb_net'])}/contract if he plays.")
+        if a.get("opp_id"):
+            lines.append(f"📝 Took it? Reply <code>/took {a['opp_id']} {round(a['ask'] * 100)} &lt;qty&gt;</code>")
+    else:
+        lines.append("<i>Info only, not betting advice. Prices move fast, so check before you buy.</i>")
     return "\n".join(lines)
+
+
+def alert_buttons(a: dict) -> list[list[dict]]:
+    first = ("kalshi_url", "Open on Kalshi") if a["buy_venue"] == "kalshi" else ("poly_url", "Open on Polymarket")
+    second = ("poly_url", "Compare on Polymarket") if a["buy_venue"] == "kalshi" else ("kalshi_url", "Compare on Kalshi")
+    return [[{"text": first[1], "url": a[first[0]]}, {"text": second[1], "url": a[second[0]]}]]
 
 
 TOOK_RE = re.compile(r"^/took(?:@\w+)?\s+(\d+)\s+([0-9.]+)\s+([0-9.]+)\s*(.*)$", re.I)
@@ -147,15 +206,23 @@ class Telegram:
             log.error("Telegram getUpdates failed: %s", e)
             return []
 
-    def send(self, text: str) -> bool:
+    @property
+    def channel_configured(self) -> bool:
+        return bool(self.s.telegram_token and self.s.telegram_channel_id)
+
+    def send(self, text: str, buttons: list[list[dict]] | None = None, chat_id: str | None = None) -> bool:
         if not self.configured:
             log.warning("Telegram not configured; alert printed instead:\n%s", text)
             print(text, "\n")
             return False
         url = f"https://api.telegram.org/bot{self.s.telegram_token}/sendMessage"
+        data = {"chat_id": chat_id or self.s.telegram_chat_id, "text": text,
+                "parse_mode": "HTML", "disable_web_page_preview": "true"}
+        if buttons:
+            import json
+            data["reply_markup"] = json.dumps({"inline_keyboard": buttons})
         try:
-            r = self.client.post(url, data={"chat_id": self.s.telegram_chat_id, "text": text,
-                                            "parse_mode": "HTML", "disable_web_page_preview": "true"})
+            r = self.client.post(url, data=data)
             if r.status_code != 200:
                 log.error("Telegram send failed: %s %s", r.status_code, r.text[:200])
                 return False
@@ -163,3 +230,13 @@ class Telegram:
         except httpx.HTTPError as e:
             log.error("Telegram send failed: %s", e)
             return False
+
+    def send_channel(self, text: str, buttons: list[list[dict]] | None = None) -> bool:
+        if not self.channel_configured:
+            return False
+        return self.send(text, buttons, chat_id=self.s.telegram_channel_id)
+
+    def pin(self, chat_id: str, message_id: int) -> bool:
+        r = self.client.post(f"https://api.telegram.org/bot{self.s.telegram_token}/pinChatMessage",
+                             data={"chat_id": chat_id, "message_id": message_id, "disable_notification": "true"})
+        return r.status_code == 200

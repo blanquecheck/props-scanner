@@ -5,7 +5,7 @@ import logging
 import sqlite3
 from datetime import datetime, timezone
 
-from .alerts import Telegram, format_alert, record_alert, should_alert
+from .alerts import Telegram, alert_buttons, format_alert, record_alert, should_alert
 from .config import ROOT, Settings
 from .db import now_iso
 from .edge import Book, FeeInfo, compute_edges
@@ -126,16 +126,19 @@ def run_scan(s: Settings, conn: sqlite3.Connection, kalshi: Kalshi, poly: Polyma
                 continue
             key = f"{row['id']}:{e.buy_venue}:{e.side}"
             if should_alert(conn, key, e.net_edge, s):
-                msg = format_alert({
+                a = {
                     "player": k.player_raw, "sport": k.sport, "stat": k.stat, "line": k.line, "side": e.side,
                     "buy_venue": e.buy_venue, "ask": e.ask, "ask_size": e.ask_size, "fee_per": e.fee_per,
                     "ref_price": e.ref_price, "net_edge": e.net_edge, "arb_net": e.arb_net,
-                    "kalshi_yes_bid": k.yes_bid, "kalshi_yes_ask": k.yes_ask,
-                    "poly_yes_bid": p.yes_bid, "poly_yes_ask": p.yes_ask, "warnings": e.warnings,
-                    "kalshi_url": k.url, "poly_url": p.url, "start_time": p.start_time,
-                    "opp_id": cur.lastrowid,
-                })
-                tg.send(msg)
+                    "warnings": e.warnings, "kalshi_url": k.url, "poly_url": p.url,
+                    "start_time": p.start_time, "game": p.event_title, "opp_id": cur.lastrowid,
+                }
+                buttons = alert_buttons(a)
+                tg.send(format_alert(a, "owner"), buttons)
+                # Members only see alerts with real size behind them.
+                if e.ask_size is not None and e.ask_size >= s.channel_min_depth:
+                    if tg.send_channel(format_alert(a, "channel"), buttons):
+                        summary["channel_posts"] = summary.get("channel_posts", 0) + 1
                 record_alert(conn, key, e.net_edge)
                 conn.execute("UPDATE opportunities SET alerted=1 WHERE id=?", (cur.lastrowid,))
                 alerted += 1

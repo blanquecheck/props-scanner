@@ -41,6 +41,7 @@ class Contract:
     fee_rate: float | None = None
     fee_exponent: float | None = None
     fee_mult: float | None = None
+    event_title: str | None = None   # e.g. "Wizards vs. Pacers" (Polymarket)
 
     @property
     def player_norm(self) -> str:
@@ -245,4 +246,5 @@ def parse_poly_market(m: dict, e: dict, sport: str, gk: str, start: datetime | N
         yes_bid=_num(m.get("bestBid")), yes_ask=_num(m.get("bestAsk")),
         yes_bid_size=None, yes_ask_size=None,
         token_yes=tokens[0], token_no=tokens[1], fee_rate=fee_rate, fee_exponent=fee_exp,
+        event_title=e.get("title"),
     )

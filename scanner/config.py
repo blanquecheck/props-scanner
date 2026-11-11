@@ -80,6 +80,10 @@ class Settings:
     db_path: str = field(default_factory=lambda: os.getenv("DB_PATH", "props.db").split("#")[0].strip() or "props.db")
     telegram_token: str = field(default_factory=lambda: os.getenv("TELEGRAM_BOT_TOKEN", "").strip())
     telegram_chat_id: str = field(default_factory=lambda: os.getenv("TELEGRAM_CHAT_ID", "").strip())
+    # Optional members channel (e.g. -1001234567890). Gets member-friendly alerts; never takes commands.
+    telegram_channel_id: str = field(default_factory=lambda: os.getenv("TELEGRAM_CHANNEL_ID", "").strip())
+    # Channel only gets alerts with at least this much size at the price (members can't all fill 10).
+    channel_min_depth: float = field(default_factory=lambda: _f("CHANNEL_MIN_DEPTH", 50))
     min_net_edge: float = field(default_factory=lambda: _f("MIN_NET_EDGE", 0.03))
     alert_contracts: int = field(default_factory=lambda: _i("ALERT_CONTRACTS", 100))
     thin_depth_contracts: float = field(default_factory=lambda: _f("THIN_DEPTH_CONTRACTS", 50))

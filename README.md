@@ -132,6 +132,27 @@ Limits of the stopgap:
 - **60-day rule:** GitHub pauses scheduled workflows in public repos after 60 days without
   repository activity. Re-enable it on the Actions tab if that happens.
 
+## Members channel (optional)
+
+Your private chat with the bot keeps getting every alert plus the `/took` line. A Telegram
+**channel** can also get a member-friendly copy:
+
+- **What members see:** the same card in plain language, with **Open on Kalshi / Compare on
+  Polymarket** buttons and a short "info only" note.
+- **What they don't:** `/took` lines, the "both sides" line, and thin markets. A market needs at
+  least `CHANNEL_MIN_DEPTH` (50) contracts at the price to go to the channel.
+- **Commands:** they only work in your private chat. Channel members can't control the bot.
+
+Setup:
+
+```bash
+.venv/bin/python -m scanner preview-alert     # sends sample cards to YOUR chat to check the look
+.venv/bin/python -m scanner setup-channel     # add the bot as channel admin; finds the id, can pin the guide
+gh secret set TELEGRAM_CHANNEL_ID --repo blanquecheck/props-scanner --body "$(grep ^TELEGRAM_CHANNEL_ID= .env | cut -d= -f2-)"
+```
+
+`python -m scanner channel-intro` re-posts and pins the "How to read these alerts" guide.
+
 ## Cron windows
 
 Scans only run in pregame windows. The times below are **US Eastern**, so set your Mac's time
