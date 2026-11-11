@@ -27,9 +27,54 @@ def upsert_contract(conn: sqlite3.Connection, c: Contract) -> int:
                         (c.venue, c.market_id)).fetchone()["id"]
 
 
-def insert_quote(conn: sqlite3.Connection, contract_id: int, bid, ask, bid_size, ask_size, source: str) -> None:
+def insert_quote(conn: sqlite3.Connection, contract_id: int, bid, ask, bid_size, ask_size, source: str) -> bool:
+    """Store a quote only if it differs from the latest one for this contract (keeps the DB small)."""
+    last = conn.execute("SELECT yes_bid, yes_ask, yes_bid_size, yes_ask_size FROM quotes WHERE contract_id=? "
+                        "ORDER BY id DESC LIMIT 1", (contract_id,)).fetchone()
+    if last and tuple(last) == (bid, ask, bid_size, ask_size):
+        return False
     conn.execute("INSERT INTO quotes (contract_id, ts, yes_bid, yes_ask, yes_bid_size, yes_ask_size, source) "
                  "VALUES (?,?,?,?,?,?,?)", (contract_id, now_iso(), bid, ask, bid_size, ask_size, source))
+    return True
+
+
+def prune(conn: sqlite3.Connection, keep_days: float = 3) -> dict:
+    """Drop data for games that ended > keep_days ago, unless it backs a flag or a trade.
+    Keeps the SQLite file small enough to round-trip through git on GitHub Actions."""
+    from datetime import datetime, timedelta, timezone
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=keep_days)).replace(microsecond=0).isoformat()
+    tracked = """SELECT kalshi_id FROM matches WHERE id IN (SELECT match_id FROM opportunities UNION SELECT match_id FROM trades_taken)
+                 UNION SELECT poly_id FROM matches WHERE id IN (SELECT match_id FROM opportunities UNION SELECT match_id FROM trades_taken)"""
+    q = conn.execute(f"DELETE FROM quotes WHERE ts < ? AND contract_id NOT IN ({tracked})", (cutoff,)).rowcount
+    m = conn.execute("""DELETE FROM matches WHERE updated_at < ? AND status IN ('auto','review')
+                        AND id NOT IN (SELECT match_id FROM opportunities UNION SELECT match_id FROM trades_taken)""",
+                     (cutoff,)).rowcount
+    c = conn.execute("""DELETE FROM prop_contracts WHERE last_seen < ?
+                        AND id NOT IN (SELECT kalshi_id FROM matches UNION SELECT poly_id FROM matches)
+                        AND id NOT IN (SELECT contract_id FROM quotes)""", (cutoff,)).rowcount
+    conn.commit()
+    if q or m or c:
+        conn.execute("VACUUM")
+    return {"quotes": q, "matches": m, "contracts": c}
+
+
+def log_trade(conn: sqlite3.Connection, opportunity_id: int, price: float, contracts: float,
+              note: str = "") -> sqlite3.Row | None:
+    """Record a trade Jaraad placed by hand against a flagged opportunity. Returns the opportunity row."""
+    from .fees import kalshi_taker_fee, polymarket_taker_fee
+    o = conn.execute("""SELECT o.*, k.fee_mult, p.fee_rate, p.fee_exponent, k.player_raw, k.stat, k.line
+                        FROM opportunities o JOIN matches m ON m.id=o.match_id
+                        JOIN prop_contracts k ON k.id=m.kalshi_id JOIN prop_contracts p ON p.id=m.poly_id
+                        WHERE o.id=?""", (opportunity_id,)).fetchone()
+    if not o or not (0 < price < 1) or contracts <= 0:
+        return None
+    fee = (kalshi_taker_fee(price, contracts, o["fee_mult"] or 1.0) if o["buy_venue"] == "kalshi"
+           else polymarket_taker_fee(price, contracts, o["fee_rate"] or 0.0, o["fee_exponent"] or 1.0))
+    conn.execute("INSERT INTO trades_taken (opportunity_id, match_id, venue, side, price, contracts, fee, ts, note) "
+                 "VALUES (?,?,?,?,?,?,?,?,?)", (o["id"], o["match_id"], o["buy_venue"], o["side"], price,
+                                                 contracts, fee, now_iso(), note))
+    conn.commit()
+    return o
 
 
 def upsert_match(conn: sqlite3.Connection, kalshi_id: int, poly_id: int, confidence: float,

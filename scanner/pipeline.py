@@ -133,6 +133,7 @@ def run_scan(s: Settings, conn: sqlite3.Connection, kalshi: Kalshi, poly: Polyma
                     "kalshi_yes_bid": k.yes_bid, "kalshi_yes_ask": k.yes_ask,
                     "poly_yes_bid": p.yes_bid, "poly_yes_ask": p.yes_ask, "warnings": e.warnings,
                     "kalshi_url": k.url, "poly_url": p.url, "start_time": p.start_time,
+                    "opp_id": cur.lastrowid,
                 })
                 tg.send(msg)
                 record_alert(conn, key, e.net_edge)

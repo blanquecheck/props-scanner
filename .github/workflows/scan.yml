@@ -1,0 +1,78 @@
+# Read-only props scanner on GitHub Actions (stopgap until the Raspberry Pi is set up).
+#
+# Schedules are in UTC and GitHub may start them late or skip them under load.
+# `scanner auto` decides what to scan from the US-Eastern clock, so DST is handled in code:
+#   NBA nightly 4pm-midnight ET, NFL Sun 10am-9pm ET and Mon/Thu 6-9pm ET.
+# Budget: ~48-54 runs/day at ~1 billed minute each, about 1,600 of the 2,000 free
+# private-repo minutes a month.
+#
+# State (props.db) lives on the `scanner-data` branch as a single force-pushed commit.
+name: scan
+
+on:
+  schedule:
+    - cron: "*/10 21-23 * * *"   # 4pm-6:59pm ET (EST)
+    - cron: "*/10 0-4 * * *"     # 7pm-11:59pm ET (EST)
+    - cron: "*/10 15-20 * * 0"   # Sunday NFL 10am-3:59pm ET (EST)
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Sports to scan now regardless of the time window (e.g. nba or nba,nfl). Blank = auto."
+        required: false
+        default: ""
+
+concurrency:
+  group: scanner          # never two runs at once (they share props.db)
+  cancel-in-progress: false
+
+permissions:
+  contents: write         # only to push props.db to the scanner-data branch
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      DB_PATH: props.db
+      CLOSE_LEAD_MIN: "12"   # runs are ~10 min apart and can start late, so open the close window earlier
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: pip install -q -r requirements.txt
+
+      - name: Restore database
+        run: |
+          if git fetch -q --depth=1 origin scanner-data 2>/dev/null; then
+            git show FETCH_HEAD:props.db > props.db
+            echo "restored props.db ($(du -h props.db | cut -f1))"
+          else
+            echo "no scanner-data branch yet; starting a fresh database"
+          fi
+
+      - name: Scan
+        run: python -m scanner auto --force "${{ github.event.inputs.force }}"
+
+      - name: Save database
+        if: always() && hashFiles('props.db') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          dir="$RUNNER_TEMP/data"
+          rm -rf "$dir" && mkdir -p "$dir"
+          cp props.db "$dir/"
+          cd "$dir"
+          git init -q -b scanner-data
+          git add props.db
+          git -c user.name="props-scanner" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -q -m "props.db snapshot $(date -u +%FT%TZ)"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" scanner-data
+          echo "saved props.db ($(du -h props.db | cut -f1))"

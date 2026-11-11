@@ -14,8 +14,8 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from .alerts import STAT_LABEL
 from .clv import flag_rows, scoreboard, trade_rows
 from .config import LOCAL_HOSTS, Settings
-from .db import connect, now_iso
-from .store import set_match_status
+from .db import connect
+from .store import log_trade, set_match_status
 
 app = FastAPI(title="Props Scanner", docs_url=None, redoc_url=None, openapi_url=None)
 S = Settings()
@@ -115,19 +115,8 @@ def opportunities(hours: int = 24):
 def mark_taken(opportunity_id: int = Form(...), price: float = Form(...), contracts: float = Form(...),
                note: str = Form("")):
     """Log a trade Jaraad placed by hand. Local bookkeeping only."""
-    conn = db()
-    o = conn.execute("""SELECT o.*, k.fee_mult, p.fee_rate, p.fee_exponent FROM opportunities o
-                        JOIN matches m ON m.id=o.match_id JOIN prop_contracts k ON k.id=m.kalshi_id
-                        JOIN prop_contracts p ON p.id=m.poly_id WHERE o.id=?""", (opportunity_id,)).fetchone()
-    if not o or not (0 < price < 1) or contracts <= 0:
+    if not log_trade(db(), opportunity_id, price, contracts, note):
         return PlainTextResponse("bad input", status_code=400)
-    from .fees import kalshi_taker_fee, polymarket_taker_fee
-    fee = (kalshi_taker_fee(price, contracts, o["fee_mult"] or 1.0) if o["buy_venue"] == "kalshi"
-           else polymarket_taker_fee(price, contracts, o["fee_rate"] or 0.0, o["fee_exponent"] or 1.0))
-    conn.execute("INSERT INTO trades_taken (opportunity_id, match_id, venue, side, price, contracts, fee, ts, note) "
-                 "VALUES (?,?,?,?,?,?,?,?,?)", (o["id"], o["match_id"], o["buy_venue"], o["side"], price,
-                                                 contracts, fee, now_iso(), note))
-    conn.commit()
     return RedirectResponse("/clv", status_code=303)
 
 

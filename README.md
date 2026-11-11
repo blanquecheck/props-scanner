@@ -91,6 +91,39 @@ CLV = the close mid on the same venue and side (snapshotted `CLOSE_LEAD_MIN` = 2
 the start) minus your entry price. If the close job misses the window, the last stored quote
 before the start is used and marked `last_quote`.
 
+## Running on GitHub Actions (stopgap until the Pi)
+
+`.github/workflows/scan.yml` runs `python -m scanner auto` every 10 minutes in the pregame
+windows. `auto` checks the US-Eastern clock and scans NBA 4pm–midnight, NFL Sunday 10am–9pm and
+Monday/Thursday 6–9pm. It also snapshots closes and reads your Telegram commands. The database
+is saved to the `scanner-data` branch after every run (a single force-pushed commit, so history
+doesn't pile up). Old, unflagged data is pruned after 3 days.
+
+One-time setup:
+
+```bash
+.venv/bin/python -m scanner setup-telegram          # writes .env
+gh secret set TELEGRAM_BOT_TOKEN --body "$(grep ^TELEGRAM_BOT_TOKEN= .env | cut -d= -f2-)"
+gh secret set TELEGRAM_CHAT_ID   --body "$(grep ^TELEGRAM_CHAT_ID= .env | cut -d= -f2-)"
+gh workflow run scan -f force=nba                    # first run now, outside the window
+```
+
+**Logging trades:** each alert ends with its flag number. When you place the trade, reply to
+the bot with `/took <id> <price> <qty>`, for example `/took 42 45 10` for 10 contracts at 45¢.
+The next run (within about 10 minutes) logs it and confirms. Only messages from your
+`TELEGRAM_CHAT_ID` count.
+
+**Viewing the UI:** `scripts/pull_db.sh && .venv/bin/python -m scanner ui`. That's a read-only
+copy; anything you change in the local UI isn't sent back.
+
+Limits of the stopgap:
+- **Timing:** GitHub starts scheduled runs late or skips them when busy, and runs are 10 minutes
+  apart, not 3. The close window opens 12 minutes before the start (`CLOSE_LEAD_MIN=12`), so
+  closes are a bit earlier than on the Pi.
+- **UTC schedule:** the cron lines are set for EST. After the March clock change, the 4pm ET
+  hour isn't covered. Add `"*/10 20 * * *"` then, or move to the Pi.
+- **Free minutes:** about 1,600 of the 2,000 a month on a private repo (each run bills ~1 minute).
+
 ## Cron windows
 
 Scans only run in pregame windows. The times below are **US Eastern**, so set your Mac's time

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import html
 import logging
+import re
 import sqlite3
 from datetime import datetime, timedelta, timezone
 
@@ -48,7 +49,62 @@ def format_alert(a: dict) -> str:
     lines.append(f"<a href=\"{html.escape(a['kalshi_url'])}\">Kalshi market</a> · "
                  f"<a href=\"{html.escape(a['poly_url'])}\">Polymarket</a>")
     lines.append("Read-only scanner. Place any trade yourself.")
+    if a.get("opp_id"):
+        lines.append(f"Took it? Reply <code>/took {a['opp_id']} &lt;price&gt; &lt;qty&gt;</code>, "
+                     f"e.g. /took {a['opp_id']} {round(a['ask'] * 100)} 10")
     return "\n".join(lines)
+
+
+TOOK_RE = re.compile(r"^/took(?:@\w+)?\s+(\d+)\s+([0-9.]+)\s+([0-9.]+)\s*(.*)$", re.I)
+HELP = ("Commands:\n/took &lt;id&gt; &lt;price&gt; &lt;qty&gt; [note]: log a trade you placed by hand on flag #id. "
+        "Price as 45 or 0.45.\n/help: this message")
+
+
+def parse_took(text: str) -> tuple[int, float, float, str] | None:
+    m = TOOK_RE.match(text.strip())
+    if not m:
+        return None
+    price = float(m.group(2))
+    if price >= 1:
+        price = price / 100  # typed in cents
+    return int(m.group(1)), price, float(m.group(3)), m.group(4).strip()
+
+
+def process_commands(conn: sqlite3.Connection, s: Settings, tg: "Telegram") -> int:
+    """Read new Telegram messages and handle /took. Only messages from TELEGRAM_CHAT_ID count."""
+    from .store import log_trade
+    if not tg.configured:
+        return 0
+    row = conn.execute("SELECT value FROM kv WHERE key='tg_offset'").fetchone()
+    offset = int(row["value"]) if row else None
+    updates = tg.get_updates(offset)
+    handled = 0
+    for u in updates:
+        offset = u["update_id"] + 1
+        msg = u.get("message") or {}
+        if str((msg.get("chat") or {}).get("id")) != str(s.telegram_chat_id):
+            continue  # ignore anyone else who finds the bot
+        text = (msg.get("text") or "").strip()
+        if text.lower().startswith("/took"):
+            parsed = parse_took(text)
+            o = log_trade(conn, *parsed) if parsed else None
+            if o:
+                opp_id, price, qty, _ = parsed
+                side = "OVER" if o["side"] == "yes" else "UNDER"
+                tg.send(f"Logged #{opp_id}: {html.escape(o['player_raw'])} {int(o['line'] + 0.5)}+ "
+                        f"{STAT_LABEL.get(o['stat'], o['stat'])} {side} on {o['buy_venue']}, "
+                        f"{qty:g} @ {price * 100:.0f}¢. CLV shows after the close.")
+            else:
+                tg.send("Couldn't log that. Use /took &lt;id&gt; &lt;price&gt; &lt;qty&gt; with the id from the alert.")
+            handled += 1
+        elif text.lower().startswith(("/help", "/start")):
+            tg.send(HELP)
+            handled += 1
+    if offset is not None:
+        conn.execute("INSERT INTO kv(key, value) VALUES('tg_offset', ?) "
+                     "ON CONFLICT(key) DO UPDATE SET value=excluded.value", (str(offset),))
+        conn.commit()
+    return handled
 
 
 def should_alert(conn: sqlite3.Connection, key: str, edge: float, s: Settings,
@@ -77,6 +133,19 @@ class Telegram:
     @property
     def configured(self) -> bool:
         return bool(self.s.telegram_token and self.s.telegram_chat_id)
+
+    def get_updates(self, offset: int | None) -> list[dict]:
+        if not self.configured:
+            return []
+        params = {"timeout": 0, "allowed_updates": '["message"]'}
+        if offset is not None:
+            params["offset"] = offset
+        try:
+            r = self.client.get(f"https://api.telegram.org/bot{self.s.telegram_token}/getUpdates", params=params)
+            return r.json().get("result", []) if r.status_code == 200 else []
+        except (httpx.HTTPError, ValueError) as e:
+            log.error("Telegram getUpdates failed: %s", e)
+            return []
 
     def send(self, text: str) -> bool:
         if not self.configured:

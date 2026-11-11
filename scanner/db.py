@@ -108,6 +108,12 @@ CREATE TABLE IF NOT EXISTS alert_state (
     last_ts       TEXT NOT NULL
 );
 
+-- small key/value state (e.g. Telegram update offset)
+CREATE TABLE IF NOT EXISTS kv (
+    key           TEXT PRIMARY KEY,
+    value         TEXT NOT NULL
+);
+
 -- player-name aliases approved by Jaraad (in addition to data/player_aliases.csv)
 CREATE TABLE IF NOT EXISTS aliases (
     sport         TEXT NOT NULL,
