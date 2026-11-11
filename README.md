@@ -54,13 +54,15 @@ python3.12 -m venv .venv
 cp .env.example .env      # then fill in the Telegram bot token and chat id
 ```
 
-Telegram (free): message `@BotFather`, run `/newbot`, and put the token in `.env`. Then send your
-bot any message, open `https://api.telegram.org/bot<TOKEN>/getUpdates`, and copy `chat.id` into
-`TELEGRAM_CHAT_ID`. Check it with:
+Telegram (free): in Telegram, message `@BotFather`, send `/newbot`, and pick a name and username.
+Then run the guided setup. It checks the token, waits for you to message your bot, saves both values
+to `.env` (mode 600), and sends a test message:
 
 ```bash
-.venv/bin/python -m scanner test-alert
+.venv/bin/python -m scanner setup-telegram
 ```
+
+Re-test any time with `.venv/bin/python -m scanner test-alert`.
 
 Without Telegram configured, alerts print to the terminal instead.
 
@@ -92,7 +94,8 @@ before the start is used and marked `last_quote`.
 ## Cron windows
 
 Scans only run in pregame windows. The times below are **US Eastern**, so set your Mac's time
-zone or adjust. Run `crontab -e`:
+zone or adjust. The ready-made file is `cron/props.cron`. Install it with `crontab cron/props.cron`
+(this replaces your whole crontab), or paste these lines into `crontab -e`:
 
 ```cron
 # NBA nightly: scan every 3 min 4pm-11:30pm ET, closes every minute 6:30pm-midnight
