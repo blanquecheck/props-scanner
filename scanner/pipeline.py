@@ -59,7 +59,9 @@ def suppression_reason(edge_net: float, gap: tuple[float, int] | None, s: Settin
 
 
 def run_scan(s: Settings, conn: sqlite3.Connection, kalshi: Kalshi, poly: Polymarket, tg: Telegram,
-             sports: list[str]) -> dict:
+             sports: list[str], injuries=None) -> dict:
+    """injuries: an InjuryReport (or None to skip the injury check, e.g. in tests)."""
+    from .injuries import check as injury_check
     summary: dict = {"started": now_iso(), "sports": sports}
     pcs, pstats = poly.contracts(sports, s.hours_ahead)
     summary["polymarket"] = pstats
@@ -114,6 +116,10 @@ def run_scan(s: Settings, conn: sqlite3.Connection, kalshi: Kalshi, poly: Polyma
             if e.ask_size is not None:
                 paper_n = min(paper_n, e.ask_size)
             why = suppression_reason(e.net_edge, gaps.get((k.game_key, k.player_norm)), s)
+            ic = injury_check(injuries, k.sport, k.player_norm, k.game_key)
+            why = why or ic.withhold
+            if ic.warning:
+                e.warnings.append(ic.warning)
             cur = conn.execute(
                 """INSERT INTO opportunities (match_id, ts, buy_venue, side, ask, ask_size, fee_per, ref_price,
                        ref_spread, buy_spread, net_edge, arb_net, warnings, suppressed, paper_contracts, paper_cost)
@@ -132,11 +138,12 @@ def run_scan(s: Settings, conn: sqlite3.Connection, kalshi: Kalshi, poly: Polyma
                     "ref_price": e.ref_price, "net_edge": e.net_edge, "arb_net": e.arb_net,
                     "warnings": e.warnings, "kalshi_url": k.url, "poly_url": p.url,
                     "start_time": p.start_time, "game": p.event_title, "opp_id": cur.lastrowid,
+                    "injury": ic.card_line,
                 }
                 buttons = alert_buttons(a)
                 tg.send(format_alert(a, "owner"), buttons)
-                # Members only see alerts with real size behind them.
-                if e.ask_size is not None and e.ask_size >= s.channel_min_depth:
+                # Members only see alerts with real size behind them and a clean injury check.
+                if ic.channel_ok and e.ask_size is not None and e.ask_size >= s.channel_min_depth:
                     if tg.send_channel(format_alert(a, "channel"), buttons):
                         summary["channel_posts"] = summary.get("channel_posts", 0) + 1
                 record_alert(conn, key, e.net_edge)

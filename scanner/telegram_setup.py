@@ -84,6 +84,7 @@ Each alert is a player prop priced differently on <b>Kalshi</b> and <b>Polymarke
 • <b>✅ Edge</b> is how much cheaper this is than the other site's price, <b>after</b> trading fees. 5¢ on a 45¢ contract is about 11%.
 • <b>💧</b> is how many contracts are available at that price. Bigger is better.
 • <b>⚠️</b> warnings mean the price could be hard to get or may already be moving.
+• <b>🩺</b> is his injury status. This channel only gets players who are off the injury report or listed probable.
 
 <b>Bet on FanDuel, Fanatics or another sportsbook?</b>
 • The Kalshi/Polymarket price won't be on your book, but the <b>📱 fair odds</b> work anywhere. If your book pays <b>more</b> than fair on the <b>same line</b>, it's a good price. Example: fair is −108, your book offers −105 or +100, that's a good price. At −115 it isn't.

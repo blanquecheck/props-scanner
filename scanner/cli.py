@@ -110,7 +110,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.cmd == "scan":
             from .pipeline import run_scan
             sports = [x.strip() for x in args.sports.split(",") if x.strip()]
-            summary = run_scan(s, conn, kalshi, poly, tg, sports)
+            from .injuries import InjuryReport
+            summary = run_scan(s, conn, kalshi, poly, tg, sports, InjuryReport(sports))
         elif args.cmd == "closes":
             from .clv import snapshot_closes
             summary = snapshot_closes(conn, kalshi, poly, s.close_lead_min)
@@ -123,7 +124,8 @@ def main(argv: list[str] | None = None) -> int:
             summary = {"now_et": now_et.isoformat(timespec="minutes"), "sports": sports,
                        "commands": process_commands(conn, s, tg)}
             if sports:
-                summary["scan"] = run_scan(s, conn, kalshi, poly, tg, sports)
+                from .injuries import InjuryReport
+                summary["scan"] = run_scan(s, conn, kalshi, poly, tg, sports, InjuryReport(sports))
             summary["closes"] = snapshot_closes(conn, kalshi, poly, s.close_lead_min)
             summary["commands"] += process_commands(conn, s, tg)
             from .store import prune

@@ -54,6 +54,8 @@ def _friendly_warning(w: str) -> str | None:
     m = re.match(r"wide (ref )?spread (\d+)c on (\w+)", w)
     if m:
         return f"{m.group(3).title()} prices are {m.group(2)}¢ apart (bid to ask), so fills may be worse"
+    if w.endswith("on injury report") or w == "injury report unavailable":
+        return None
     if w == "depth unknown":
         return "Size at this price is unknown"
     return w
@@ -110,6 +112,8 @@ def format_alert(a: dict, audience: str = "owner") -> str:
     ]
     if a.get("ask_size") is not None:
         lines.append(f"💧 {a['ask_size']:g} contracts available at {cents(a['ask'])}")
+    if a.get("injury"):
+        lines.append(html.escape(a["injury"]))
     warns = [fw for w in (a.get("warnings") or []) if (fw := _friendly_warning(w))]
     if warns:
         lines.append("")

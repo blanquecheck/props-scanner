@@ -29,6 +29,22 @@ every trade yourself.
    **THIN BOOK** warning under 50 contracts, spread warnings, and Kalshi/Polymarket links.
    Dedupe: the same market + side alerts again only after 60 min or if the edge grows by 2¢.
 
+### Injury check
+
+Each scan reads ESPN's free public injury feed (JSON, no key) for NBA and NFL. It's a safety
+filter, never a betting signal:
+
+| Injury report | Your DM | Members channel |
+|---|---|---|
+| Out or Doubtful | withheld | withheld |
+| Questionable / day-to-day | sent, with 🚑 status | skipped |
+| Probable | sent, with 🩺 status | sent |
+| Not listed | sent, "🩺 Not on the injury report" | sent |
+| Feed unavailable | sent, flagged | skipped |
+
+The lookup uses each game's two teams, so two players with the same name don't get mixed up. If
+an "Out" player's expected return date falls on or before the game, he's treated as Questionable.
+
 ### DNP guard
 
 The two venues settle a player who doesn't play differently:
