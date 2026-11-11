@@ -1,0 +1,13 @@
+# Known name differences between venues. Exact name matches don't need a row.
+# Add rows here (or approve pairs in the UI review list). Names are normalized
+# (accents, punctuation, Jr./III stripped) before comparing.
+sport,kalshi_name,polymarket_name
+nba,Nic Claxton,Nicolas Claxton
+nba,Herb Jones,Herbert Jones
+nba,Cam Thomas,Cameron Thomas
+nba,Bub Carrington,Carlton Carrington
+nba,Moe Wagner,Moritz Wagner
+nba,Kenyon Martin,KJ Martin
+nfl,Hollywood Brown,Marquise Brown
+nfl,Gabe Davis,Gabriel Davis
+nfl,Chig Okonkwo,Chigoziem Okonkwo

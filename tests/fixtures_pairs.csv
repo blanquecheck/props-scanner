@@ -1,0 +1,23 @@
+sport,stat,kalshi_event,kalshi_title,kalshi_floor,poly_event,poly_question,poly_line
+nba,assists,KXNBAAST-26NOV11CLENYK,Peyton Watson: 4+ assists,3.5,nba-cle-nyk-2026-11-11,Peyton Watson: Assists O/U 3.5,3.5
+nba,rebounds,KXNBAREB-26NOV11DENMEM,Aaron Gordon: 2+ rebounds,1.5,nba-den-mem-2026-11-11,Aaron Gordon: Rebounds O/U 1.5,1.5
+nba,assists,KXNBAAST-26NOV11SASCHI,Caleb Wilson: 4+ assists,3.5,nba-sas-chi-2026-11-11,Caleb Wilson: Assists O/U 3.5,3.5
+nba,points,KXNBAPTS-26NOV11CLENYK,James Harden: 10+ points,9.5,nba-cle-nyk-2026-11-11,James Harden: Points O/U 9.5,9.5
+nba,points,KXNBAPTS-26NOV11BKNNOP,Mikel Brown Jr.: 10+ points,9.5,nba-bkn-nop-2026-11-11,Mikel Brown Jr.: Points O/U 9.5,9.5
+nba,steals,KXNBASTL-26NOV11BKNNOP,Dejounte Murray: 1+ steals,0.5,nba-bkn-nop-2026-11-11,Dejounte Murray: Steals O/U 0.5,0.5
+nba,assists,KXNBAAST-26NOV11DENMEM,Cedric Coward: 2+ assists,1.5,nba-den-mem-2026-11-11,Cedric Coward: Assists O/U 1.5,1.5
+nba,points,KXNBAPTS-26NOV11LALMIL,Kyle Kuzma: 20+ points,19.5,nba-lal-mil-2026-11-11,Kyle Kuzma: Points O/U 19.5,19.5
+nba,threes,KXNBA3PT-26NOV11SASCHI,De'Aaron Fox: 1+ threes,0.5,nba-sas-chi-2026-11-11,De'Aaron Fox: 3-Pointers Made O/U 0.5,0.5
+nba,rebounds,KXNBAREB-26NOV11LALMIL,Ziaire Williams: 6+ rebounds,5.5,nba-lal-mil-2026-11-11,Ziaire Williams: Rebounds O/U 5.5,5.5
+nba,points,KXNBAPTS-26NOV11GSWHOU,Stephen Curry: 35+ points,34.5,nba-gsw-hou-2026-11-11,Stephen Curry: Points O/U 34.5,34.5
+nba,threes,KXNBA3PT-26NOV11BKNNOP,Mikel Brown Jr.: 1+ threes,0.5,nba-bkn-nop-2026-11-11,Mikel Brown Jr.: 3-Pointers Made O/U 0.5,0.5
+nba,threes,KXNBA3PT-26NOV11DENMEM,Cameron Johnson: 3+ threes,2.5,nba-den-mem-2026-11-11,Cameron Johnson: 3-Pointers Made O/U 2.5,2.5
+nba,threes,KXNBA3PT-26NOV11CLENYK,James Harden: 3+ threes,2.5,nba-cle-nyk-2026-11-11,James Harden: 3-Pointers Made O/U 2.5,2.5
+nba,points,KXNBAPTS-26NOV11WASIND,Andrew Nembhard: 10+ points,9.5,nba-was-ind-2026-11-11,Andrew Nembhard: Points O/U 9.5,9.5
+nba,threes,KXNBA3PT-26NOV11WASIND,AJ Dybantsa: 1+ threes,0.5,nba-was-ind-2026-11-11,AJ Dybantsa: 3-Pointers Made O/U 0.5,0.5
+nba,points,KXNBAPTS-26NOV11SASCHI,Nic Claxton: 15+ points,14.5,nba-sas-chi-2026-11-11,Nicolas Claxton: Points O/U 14.5,14.5
+nba,assists,KXNBAAST-26NOV11WASIND,Trae Young: 8+ assists,7.5,nba-was-ind-2026-11-11,Trae Young: Assists O/U 7.5,7.5
+nba,rebounds,KXNBAREB-26NOV11ORLUTA,Franz Wagner: 8+ rebounds,7.5,nba-orl-uta-2026-11-11,Franz Wagner: Rebounds O/U 7.5,7.5
+nba,assists,KXNBAAST-26NOV11GSWHOU,Gui Santos: 4+ assists,3.5,nba-gsw-hou-2026-11-11,Gui Santos: Assists O/U 3.5,3.5
+nba,rebounds,KXNBAREB-26NOV11BKNNOP,Dejounte Murray: 2+ rebounds,1.5,nba-bkn-nop-2026-11-11,Dejounte Murray: Rebounds O/U 1.5,1.5
+nba,points,KXNBAPTS-26NOV11DENMEM,Ty Jerome: 15+ points,14.5,nba-den-mem-2026-11-11,Ty Jerome: Points O/U 14.5,14.5
