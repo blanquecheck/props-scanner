@@ -18,6 +18,14 @@ API = "https://api.telegram.org"
 TOKEN_RE = re.compile(r"^\d{5,}:[A-Za-z0-9_-]{30,}$")
 
 
+def _get_updates(client: httpx.Client, token: str, params: dict) -> dict | None:
+    """getUpdates that survives dropped connections and bad responses (returns None to retry)."""
+    try:
+        return client.get(f"{API}/bot{token}/getUpdates", params=params).json()
+    except (httpx.HTTPError, ValueError):
+        return None
+
+
 def set_env_values(env_path: Path, values: dict[str, str], template: Path | None = None) -> None:
     """Set KEY=value lines in .env, creating it from .env.example if missing. Other lines are kept."""
     if env_path.exists():
@@ -45,7 +53,10 @@ def find_chat_id(client: httpx.Client, token: str, timeout_s: float = 180, poll_
         params = {"timeout": 0}
         if offset is not None:
             params["offset"] = offset
-        r = client.get(f"{API}/bot{token}/getUpdates", params=params).json()
+        r = _get_updates(client, token, params)
+        if r is None:
+            time.sleep(poll_s)
+            continue
         for u in r.get("result", []):
             offset = u["update_id"] + 1
             msg = u.get("message") or u.get("edited_message") or {}
@@ -90,7 +101,10 @@ def find_channel_id(client: httpx.Client, token: str, timeout_s: float = 300, po
         params = {"timeout": 0, "allowed_updates": '["my_chat_member","channel_post"]'}
         if offset is not None:
             params["offset"] = offset
-        r = client.get(f"{API}/bot{token}/getUpdates", params=params).json()
+        r = _get_updates(client, token, params)
+        if r is None:
+            time.sleep(poll_s)
+            continue
         for u in r.get("result", []):
             offset = u["update_id"] + 1
             ev = u.get("my_chat_member") or u.get("channel_post") or {}

@@ -59,3 +59,16 @@ def test_intro_is_valid_telegram_html():
     for t in ("b", "i"):
         assert ts.CHANNEL_INTRO.count(f"<{t}>") == ts.CHANNEL_INTRO.count(f"</{t}>")
     assert len(ts.CHANNEL_INTRO) < 4096   # Telegram message limit
+
+
+def test_find_channel_id_survives_dropped_connection():
+    calls = {"n": 0}
+    def handler(req):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise httpx.RemoteProtocolError("Server disconnected without sending a response.")
+        return httpx.Response(200, json={"ok": True, "result": [
+            {"update_id": 1, "my_chat_member": {"chat": {"id": -100777, "type": "channel", "title": "C"},
+                                                "new_chat_member": {"status": "administrator"}}}]})
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    assert ts.find_channel_id(client, TOKEN, timeout_s=10, poll_s=0.01) == ("-100777", "C")
