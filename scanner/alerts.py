@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 
+from . import odds
 from .config import Settings
 from .db import now_iso
 
@@ -62,11 +63,28 @@ def what_to_buy(a: dict) -> str:
     """Exact instruction in each venue's own wording, e.g. Kalshi YES on '20+ points'."""
     n = int(a["line"] + 0.5)
     stat = STAT_LABEL.get(a["stat"], a["stat"])
+    price = f"<b>{cents(a['ask'])}</b> ({odds.fmt_p(a['ask'])})" if 0 < a["ask"] < 1 else f"<b>{cents(a['ask'])}</b>"
     if a["buy_venue"] == "kalshi":
-        return f"Kalshi: buy <b>{'YES' if a['side'] == 'yes' else 'NO'}</b> on “{n}+ {stat}” at <b>{cents(a['ask'])}</b>"
+        return f"Kalshi: buy <b>{'YES' if a['side'] == 'yes' else 'NO'}</b> on “{n}+ {stat}” at {price}"
     poly_stat = STAT_TITLE.get(a["stat"], stat).capitalize()
     return (f"Polymarket: buy <b>{'Yes' if a['side'] == 'yes' else 'No'}</b> on “{poly_stat} O/U {a['line']:g}” "
-            f"at <b>{cents(a['ask'])}</b>")
+            f"at {price}")
+
+
+def sportsbook_lines(a: dict) -> list[str]:
+    """For FanDuel / Fanatics / other books: the same bet in sportsbook terms and the fair odds.
+    Books won't offer the Kalshi/Polymarket price, but if a book pays more than fair, it's a good price."""
+    fair = a["ref_price"]
+    if not 0.05 <= fair <= 0.95:
+        return []  # extreme longshots/favorites: books rarely post these, and the odds get silly
+    stat = STAT_LABEL.get(a["stat"], a["stat"])
+    side = "Over" if a["side"] == "yes" else "Under"
+    f = odds.american(fair)
+    return [
+        "📱 <b>FanDuel / Fanatics / other books</b>",
+        f"Bet: <b>{side} {a['line']:g} {stat}</b> (same line only)",
+        f"Fair odds ≈ <b>{odds.fmt(f)}</b>. Good price if your book pays {odds.fmt(odds.next_better(f))} or better.",
+    ]
 
 
 def format_alert(a: dict, audience: str = "owner") -> str:
@@ -96,6 +114,10 @@ def format_alert(a: dict, audience: str = "owner") -> str:
     if warns:
         lines.append("")
         lines += [f"⚠️ {html.escape(w)}" for w in warns]
+    book = sportsbook_lines(a)
+    if book:
+        lines.append("")
+        lines += book
     lines.append("")
     lines.append("ℹ️ Check he's playing. If he sits, Polymarket pays No but Kalshi settles at a fair price.")
     if audience == "owner":

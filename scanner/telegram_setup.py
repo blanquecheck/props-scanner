@@ -74,8 +74,9 @@ Each alert is a player prop priced differently on <b>Kalshi</b> and <b>Polymarke
 <b>Example</b>
 🏀 NBA · Wizards vs. Pacers · 7:00 PM ET
 <b>AJ Dybantsa · OVER 19.5 points</b>
-👉 Kalshi: buy YES on “20+ points” at 45¢
+👉 Kalshi: buy YES on “20+ points” at 45¢ (+122)
 ✅ Edge: +5.3¢ per contract after fees (≈11% on cost)
+📱 FanDuel / Fanatics: Over 19.5 points. Fair odds ≈ −108. Good price if your book pays −105 or better.
 
 <b>What each line means</b>
 • <b>OVER 19.5</b> means he needs 20 or more. <b>UNDER</b> means 19 or fewer.
@@ -83,6 +84,12 @@ Each alert is a player prop priced differently on <b>Kalshi</b> and <b>Polymarke
 • <b>✅ Edge</b> is how much cheaper this is than the other site's price, <b>after</b> trading fees. 5¢ on a 45¢ contract is about 11%.
 • <b>💧</b> is how many contracts are available at that price. Bigger is better.
 • <b>⚠️</b> warnings mean the price could be hard to get or may already be moving.
+
+<b>Bet on FanDuel, Fanatics or another sportsbook?</b>
+• The Kalshi/Polymarket price won't be on your book, but the <b>📱 fair odds</b> work anywhere. If your book pays <b>more</b> than fair on the <b>same line</b>, it's a good price. Example: fair is −108, your book offers −105 or +100, that's a good price. At −115 it isn't.
+• Same line only. Over 19.5 and Over 20.5 are different bets.
+• Cents to odds: 50¢ = +100 (even), 45¢ ≈ +122, 33¢ ≈ +200, 60¢ = −150, 75¢ = −300.
+• Most books void a player prop if he doesn't play. Check your book's rules.
 
 <b>Before you buy</b>
 • Prices move fast. Open the market with the button and check the price is still there.
