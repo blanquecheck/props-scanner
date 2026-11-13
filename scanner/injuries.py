@@ -1,11 +1,16 @@
 """Injury status from ESPN's free public injury feed (JSON; no key, no scraping).
 
 Used as a safety filter, never as a betting signal:
-  out / doubtful  -> alert withheld
-  questionable    -> owner alert with a warning; members channel skips it
-  probable        -> shown on the card
-  not listed      -> "not on the injury report"
+  out                         -> alert withheld
+  doubtful / questionable     -> alert withheld while hold_unconfirmed is on (the default).
+                                 The row is kept with "waiting for status". Alerts resume
+                                 when a later scan shows probable, active, available, or
+                                 the player is no longer listed. With the hold off, doubtful
+                                 is still withheld and questionable goes to the owner only.
+  probable / active           -> shown on the card
+  not listed                  -> "not on the injury report"
 If the feed can't be read, alerts still reach the owner (flagged) but the channel skips them.
+Applies to every sport the report was loaded for (NBA and NFL).
 """
 from __future__ import annotations
 
@@ -26,7 +31,7 @@ ESPN_PATHS = {"nba": "/apis/site/v2/sports/basketball/nba/injuries",
 
 @dataclass
 class Injury:
-    status: str          # out | doubtful | questionable | probable
+    status: str          # out | doubtful | questionable | probable | active
     raw: str             # ESPN status, e.g. "Day-To-Day"
     comment: str
     team: str            # canonical team code
@@ -46,13 +51,19 @@ def classify(raw: str, comment: str) -> str:
         return "doubtful"
     if r == "probable":
         return "probable"
-    # Day-To-Day / Questionable: the comment usually says which way it's leaning.
+    # Day-To-Day / Questionable / blank: the comment usually says which way it's leaning.
+    # A ruled-out comment wins over an Active/Available tag.
     if re.search(r"\bruled out\b|\bwill not play\b|\bwon't play\b|\bwill miss\b", c):
         return "out"
     if "doubtful" in c:
         return "doubtful"
     if "probable" in c or "expected to play" in c or "will play" in c:
         return "probable"
+    if r in ("active", "available"):
+        return "active"
+    # "not available" / "unavailable" must stay unconfirmed, not look like a clearance.
+    if re.search(r"\b(?:active|available)\b", c) and not re.search(r"\b(?:not available|unavailable)\b", c):
+        return "active"
     return "questionable"
 
 
@@ -110,7 +121,14 @@ class InjuryCheck:
     warning: str | None = None
 
 
-def check(report: InjuryReport | None, sport: str, player_norm: str, game_key: str) -> InjuryCheck:
+def _waiting(status: str) -> str:
+    return f"{status.capitalize()} on injury report: waiting for status"
+
+
+def check(report: InjuryReport | None, sport: str, player_norm: str, game_key: str,
+          *, hold_unconfirmed: bool = True) -> InjuryCheck:
+    """hold_unconfirmed: withhold Questionable and Doubtful until a later scan confirms him.
+    Out is always withheld. Probable, active, and not-listed stay eligible to alert."""
     if report is None:
         return InjuryCheck(None, True, "")
     if not report.ok.get(sport, False):
@@ -121,8 +139,12 @@ def check(report: InjuryReport | None, sport: str, player_norm: str, game_key: s
         return InjuryCheck(None, True, "🩺 Not on the injury report")
     short = inj.comment[:140]
     if inj.status in ("out", "doubtful"):
-        return InjuryCheck(f"listed {inj.status.upper()} on the injury report: {short}", False,
-                           f"🩺 {inj.label()}: {short}")
+        if hold_unconfirmed and inj.status == "doubtful":
+            reason = _waiting(inj.status)
+        else:
+            reason = f"listed {inj.status.upper()} on the injury report: {short}"
+        return InjuryCheck(reason, False, f"🩺 {inj.label()}: {short}")
     if inj.status == "questionable":
-        return InjuryCheck(None, False, f"🚑 {inj.label()}: {short}", f"{inj.label()} on injury report")
+        reason = _waiting(inj.status) if hold_unconfirmed else None
+        return InjuryCheck(reason, False, f"🚑 {inj.label()}: {short}", f"{inj.label()} on injury report")
     return InjuryCheck(None, True, f"🩺 {inj.label()}: {short}")

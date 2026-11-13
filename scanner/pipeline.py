@@ -116,7 +116,11 @@ def run_scan(s: Settings, conn: sqlite3.Connection, kalshi: Kalshi, poly: Polyma
             if e.ask_size is not None:
                 paper_n = min(paper_n, e.ask_size)
             why = suppression_reason(e.net_edge, gaps.get((k.game_key, k.player_norm)), s)
-            ic = injury_check(injuries, k.sport, k.player_norm, k.game_key)
+            # Same gate for every sport that has an injury feed (NBA and NFL today).
+            ic = injury_check(injuries, k.sport, k.player_norm, k.game_key,
+                              hold_unconfirmed=s.suppress_unconfirmed_injury)
+            # DNP / absurd-edge reasons stay first. Questionable and Doubtful only fill in
+            # when those didn't already suppress the row. Out is inside ic.withhold.
             why = why or ic.withhold
             if ic.warning:
                 e.warnings.append(ic.warning)

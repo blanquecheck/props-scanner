@@ -75,6 +75,17 @@ def _i(name: str, default: int) -> int:
     return int(_f(name, default))
 
 
+def _b(name: str, default: bool) -> bool:
+    v = os.getenv(name, "").split("#")[0].strip().lower()
+    if not v:
+        return default
+    if v in ("1", "true", "yes", "on"):
+        return True
+    if v in ("0", "false", "no", "off"):
+        return False
+    return default
+
+
 @dataclass
 class Settings:
     db_path: str = field(default_factory=lambda: os.getenv("DB_PATH", "props.db").split("#")[0].strip() or "props.db")
@@ -99,6 +110,11 @@ class Settings:
     # When the venues disagree on one player across lines, it's almost always lineup news.
     dnp_gap: float = field(default_factory=lambda: _f("DNP_GAP", 0.05))
     max_sane_edge: float = field(default_factory=lambda: _f("MAX_SANE_EDGE", 0.15))
+    # Hold Telegram while the player is Questionable or Doubtful. The opportunity is still
+    # saved. A later scan alerts again once the report says probable, active, available,
+    # or the player is no longer listed. Out is always withheld, whether this is on or off.
+    suppress_unconfirmed_injury: bool = field(
+        default_factory=lambda: _b("SUPPRESS_UNCONFIRMED_INJURY", True))
     ui_host: str = field(default_factory=lambda: os.getenv("UI_HOST", "127.0.0.1").split("#")[0].strip() or "127.0.0.1")
     ui_port: int = field(default_factory=lambda: _i("UI_PORT", 8765))
 
