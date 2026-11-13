@@ -36,14 +36,23 @@ filter, never a betting signal:
 
 | Injury report | Your DM | Members channel |
 |---|---|---|
-| Out or Doubtful | withheld | withheld |
-| Questionable / day-to-day | sent, with 🚑 status | skipped |
-| Probable | sent, with 🩺 status | sent |
+| Out | withheld | withheld |
+| Questionable or Doubtful | withheld until a later scan shows probable, active, available, or not listed | withheld |
+| Probable / active / available | sent, with 🩺 status | sent |
 | Not listed | sent, "🩺 Not on the injury report" | sent |
 | Feed unavailable | sent, flagged | skipped |
 
+Questionable and Doubtful rows are still saved, with `suppressed` set to
+`Questionable on injury report: waiting for status` (or Doubtful). Nothing is written to the
+alert dedupe, so the next scan that shows him probable, active, available, or off the report
+alerts through the normal cooldown rules. This is on by default (`SUPPRESS_UNCONFIRMED_INJURY=1`).
+Set it to `0` to get the old behavior: Questionable DMs you and the channel still skips it.
+Doubtful and Out stay withheld either way. The same rule applies to every sport with an injury
+feed (NBA and NFL).
+
 The lookup uses each game's two teams, so two players with the same name don't get mixed up. If
-an "Out" player's expected return date falls on or before the game, he's treated as Questionable.
+an "Out" player's expected return date falls on or before the game, he's treated as Questionable
+and held the same way.
 
 ### DNP guard
 
@@ -194,7 +203,8 @@ on 429/5xx).
 ## Tuning
 
 Everything is in `.env` (see `.env.example`): `MIN_NET_EDGE`, `THIN_DEPTH_CONTRACTS`,
-`MAX_REF_SPREAD`, `ALERT_COOLDOWN_MIN`, `DNP_GAP`, `MAX_SANE_EDGE`, `PAPER_STAKE_USD`, and so on.
+`MAX_REF_SPREAD`, `ALERT_COOLDOWN_MIN`, `DNP_GAP`, `MAX_SANE_EDGE`,
+`SUPPRESS_UNCONFIRMED_INJURY`, `PAPER_STAKE_USD`, and so on.
 
 ## Known limits (as of 2026-11-11)
 
